@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Slack App with Socket Mode
+
+Parameters:
+  SlackAppToken:
+    Type: String
+    NoEcho: true
+    Description: Slack App Token (xapp-1-...)
+  SlackBotToken:
+    Type: String
+    NoEcho: true
+    Description: Slack Bot Token (xoxb-...)
+  OpenAIApiKey:
+    Type: String
+    NoEcho: true
+    Description: OpenAI API Key
+  SlackSigningSecret:
+    Type: String
+    NoEcho: true
+    Description: Slack Signing Secret
+
+Resources:
+  SlackAppFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: src/
+      Handler: app.handler
+      Runtime: python3.10
+      Timeout: 600
+      MemorySize: 512
+      Environment:
+        Variables:
+          SLACK_APP_TOKEN: !Ref SlackAppToken
+          SLACK_BOT_TOKEN: !Ref SlackBotToken
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          SLACK_SIGNING_SECRET: !Ref SlackSigningSecret
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /slack/events
+            Method: post
+
+Outputs:
+  SlackAppApi:
+    Description: API Gateway endpoint URL for Slack App
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/slack/events/"
+
+Metadata:
+  BuildMethod: makefile 

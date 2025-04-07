@@ -1,8 +1,8 @@
 import os
 import re
 from typing import List, Dict
-
 import openai
+from .agent import triage_agent, Runner, ChatResponseOutput
 
 DEFAULT_SYSTEM_CONTENT = """
 You're an assistant in a Slack workspace.
@@ -13,20 +13,26 @@ When a prompt has Slack's special syntax like <@USER_ID> or <#CHANNEL_ID>, you m
 """
 
 
-def call_llm(
+async def call_llm(
     messages_in_thread: List[Dict[str, str]],
     system_content: str = DEFAULT_SYSTEM_CONTENT,
-) -> str:
-    openai_client = openai.OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    messages = [{"role": "system", "content": system_content}]
-    messages.extend(messages_in_thread)
-    response = openai_client.chat.completions.create(
-        model="gpt-4o-mini",
-        n=1,
-        messages=messages,
-        max_tokens=16384,
+) -> ChatResponseOutput:
+    """
+    Call the appropriate agent based on the message content.
+    """
+    # Get the last user message from the thread
+    last_user_message = next(
+        (msg["content"] for msg in reversed(messages_in_thread) if msg["role"] == "user"),
+        None
     )
-    return markdown_to_slack(response.choices[0].message.content)
+    
+    if last_user_message:
+        result = await Runner.run(triage_agent, last_user_message)
+        response = result.final_output.response
+        
+        return ChatResponseOutput(response = markdown_to_slack(response), follow_up_prompt_questions=result.final_output.follow_up_prompt_questions)
+    else:
+        return "No user message found in the thread."
 
 
 # Conversion from OpenAI markdown to Slack mrkdwn
@@ -56,4 +62,4 @@ def markdown_to_slack(content: str) -> str:
             ]:
                 part = re.sub(o, n, part)
             result += part
-    return result
+    return result 

@@ -4,7 +4,7 @@ from slack_bolt import Assistant, BoltContext, Say, SetSuggestedPrompts, SetStat
 from slack_bolt.context.get_thread_context import GetThreadContext
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
-
+import asyncio
 from .llm_caller import call_llm
 
 # Refer to https://tools.slack.dev/bolt-python/concepts/assistant/ for more details
@@ -24,16 +24,16 @@ def start_assistant_thread(
 
         prompts: List[Dict[str, str]] = [
             {
-                "title": "What does Slack stand for?",
-                "message": "Slack, a business communication service, was named after an acronym. Can you guess what it stands for?",
+                "title": "AI Alignment",
+                "message": "What are the key challenges in aligning advanced AI systems with human values and intentions?",
             },
             {
-                "title": "Write a draft announcement",
-                "message": "Can you write a draft announcement about a new feature my team just released? It must include how impactful it is.",
+                "title": "Macro Investing",
+                "message": "What are the key principles and strategies that only top-tier hedge fund investors like Tiger Global use to navigate global markets?",
             },
             {
-                "title": "Suggest names for my Slack app",
-                "message": "Can you suggest a few names for my Slack app? The app helps my teammates better organize information and plan priorities and action items.",
+                "title": "AI Explainability",
+                "message": "What are the current limitations and future prospects for making complex AI systems more interpretable and explainable?",
             },
         ]
 
@@ -53,18 +53,19 @@ def start_assistant_thread(
 
 # This listener is invoked when the human user sends a reply in the assistant thread
 @assistant.user_message
-def respond_in_assistant_thread(
+async def respond_in_assistant_thread(
     payload: dict,
     logger: logging.Logger,
     context: BoltContext,
     set_status: SetStatus,
     get_thread_context: GetThreadContext,
+    set_suggested_prompts: SetSuggestedPrompts,
     client: WebClient,
     say: Say,
 ):
     try:
         user_message = payload["text"]
-        set_status("is typing...")
+        set_status("is thinking & typing...")
 
         if user_message == "Can you generate a brief summary of the referred channel?":
             # the logic here requires the additional bot scopes:
@@ -87,7 +88,7 @@ def respond_in_assistant_thread(
                 if message.get("user") is not None:
                     prompt += f"\n<@{message['user']}> says: {message['text']}\n"
             messages_in_thread = [{"role": "user", "content": prompt}]
-            returned_message = call_llm(messages_in_thread)
+            returned_message = await call_llm(messages_in_thread)
             say(returned_message)
             return
 
@@ -101,8 +102,13 @@ def respond_in_assistant_thread(
         for message in replies["messages"]:
             role = "user" if message.get("bot_id") is None else "assistant"
             messages_in_thread.append({"role": role, "content": message["text"]})
-        returned_message = call_llm(messages_in_thread)
-        say(returned_message)
+        chat_output = await call_llm(messages_in_thread)
+        say(chat_output.response)
+
+        if chat_output.follow_up_prompt_questions:
+            prompts = [{"title": question, "message": question} for question in chat_output.follow_up_prompt_questions]
+            set_suggested_prompts(prompts=prompts[:3] if len(prompts) > 3 else prompts)
+
 
     except Exception as e:
         logger.exception(f"Failed to handle a user message event: {e}")
