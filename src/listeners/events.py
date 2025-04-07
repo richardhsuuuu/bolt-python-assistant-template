@@ -8,31 +8,30 @@ logger = logging.getLogger(__name__)
 def register_events(app: App):
     """Register all event listeners"""
     
-    # # Handle message events
-    # @app.event("message")
-    # def handle_message_events(body, say, logger):
-    #     """Handle message events"""
-    #     try:
-    #         # Get user message
-    #         user_message = body["event"]["text"]
-    #         logger.info(f"Received message: {user_message}")
+    # Handle message events
+    @app.event("message")
+    def handle_message_events(body, say, logger):
+        """Handle message events"""
+        try:
+            # Get user message
+            user_message = body["event"]["text"]
+            logger.info(f"Received message: {user_message}")
             
-    #         # Get bot user ID to prevent responding to own messages
-    #         if "bot_id" in body["event"]:
-    #             return  # Don't respond to bot messages
+            # Get bot user ID to prevent responding to own messages
+            if "bot_id" in body["event"]:
+                return  # Don't respond to bot messages
             
-    #         # Call LLM with message
-    #         messages = [{"role": "user", "content": user_message}]
-
-
-    #         response = asyncio.run(call_llm(messages))
+            # Call LLM with message
+            messages = [{"role": "user", "content": user_message}]
+            say("right before llm!")
+            response = asyncio.run(call_llm(messages))
+            say("right after llm!")
+            # Send response
+            say(response.response)
             
-    #         # Send response
-    #         say(response)
-            
-    #     except Exception as e:
-    #         logger.error(f"Error handling message: {e}")
-    #         say("Sorry, I encountered an error processing your request.")
+        except Exception as e:
+            logger.error(f"Error handling message: {e}")
+            say("Sorry, I encountered an error processing your request.")
     
     # Handle app_mention events
     @app.event("app_mention")

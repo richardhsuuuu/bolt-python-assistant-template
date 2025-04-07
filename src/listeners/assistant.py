@@ -53,7 +53,7 @@ def start_assistant_thread(
 
 # This listener is invoked when the human user sends a reply in the assistant thread
 @assistant.user_message
-async def respond_in_assistant_thread(
+def respond_in_assistant_thread(
     payload: dict,
     logger: logging.Logger,
     context: BoltContext,
@@ -88,7 +88,7 @@ async def respond_in_assistant_thread(
                 if message.get("user") is not None:
                     prompt += f"\n<@{message['user']}> says: {message['text']}\n"
             messages_in_thread = [{"role": "user", "content": prompt}]
-            returned_message = await call_llm(messages_in_thread)
+            returned_message = asyncio.run(call_llm(messages_in_thread))
             say(returned_message)
             return
 
@@ -102,7 +102,7 @@ async def respond_in_assistant_thread(
         for message in replies["messages"]:
             role = "user" if message.get("bot_id") is None else "assistant"
             messages_in_thread.append({"role": role, "content": message["text"]})
-        chat_output = await call_llm(messages_in_thread)
+        chat_output = asyncio.run(call_llm(messages_in_thread))
         say(chat_output.response)
 
         if chat_output.follow_up_prompt_questions:
